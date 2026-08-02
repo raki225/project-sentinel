@@ -80,11 +80,13 @@ accordingly — nothing here is aspirational marketing copy.
 | Image OCR | `tesseract.js` (English) with `sharp` pre-processing (grayscale, resize floor, normalize) |
 | AI structured analysis | Calls any OpenAI-compatible `/chat/completions` endpoint (provider swappable via `.env` only) with a fixed JSON-extraction prompt |
 | Best-effort geocoding | Google Maps Geocoding API resolves extracted district/department → `{ lat, lng, formattedAddress }`; never blocks analysis on failure |
-| Persistence | MongoDB via Mongoose — `Document`, `Report`, `User`, `AuditLog` collections |
-| Dashboard aggregates | Document/report counts, status & type breakdowns, avg. risk/confidence, high-risk count, recent documents |
+| Persistence | MongoDB via Mongoose — `Project`, `Document`, `Report`, `User`, `AuditLog`, `GovDataSyncRun` collections |
+| Government open-data ingestion | Pluggable fetchers (data.gov.in keyed API, generic CSV/XLSX/JSON/XML/ZIP file URLs) → parsers → configurable-field-map normalizer → MongoDB, on a 24h scheduler (`node-cron`); full run history kept in `GovDataSyncRun` |
+| AI risk enrichment | Deterministic scoring of every project — budget outliers vs. departmental median, timeline delays, duplicate site coordinates, budget-vs-progress mismatches — written to `Project.riskScore`/`anomalies[]` and the activity feed |
+| Dashboard aggregates | Document/report counts, status & type breakdowns, avg. risk/confidence, high-risk count, recent documents — plus project status/state/department rollups |
 | Per-document timeline | Audit-log event stream + report timeline/progress for one document |
-| Live activity feed | Newest-first audit events (upload/analyze/delete) with derived severity |
-| Project map data | Geocoded reports → map points with a computed risk tier (`low`/`medium`/`high`) and health score |
+| Live activity feed | Newest-first audit events (upload/analyze/delete, AI anomaly findings, gov-data syncs) with derived severity |
+| Project map data | Geocoded projects (government data + AI-analyzed reports) → map points with a computed risk tier (`low`/`medium`/`high`) and health score |
 | Document management | Paginated/filterable listing, deletion (removes file + report + logs the action) |
 | JWT auth (issuing) | `register` / `login` work end-to-end — bcrypt-hashed passwords, signed JWTs |
 | API docs | Swagger/OpenAPI 3.0 auto-generated from route JSDoc, served at `/api-docs` |
@@ -219,6 +221,7 @@ project-sentinel/
 │   │   │   ├── dashboardController.ts
 │   │   │   ├── documentController.ts
 │   │   │   ├── mapController.ts
+│   │   │   ├── projectController.ts # Government-data-backed project list/detail
 │   │   │   ├── reportController.ts
 │   │   │   ├── timelineController.ts
 │   │   │   └── uploadController.ts
@@ -231,8 +234,18 @@ project-sentinel/
 │   │   ├── models/
 │   │   │   ├── AuditLog.ts
 │   │   │   ├── Document.ts
+│   │   │   ├── GovDataSyncRun.ts   # Ingestion run history (records fetched/created/updated/skipped)
+│   │   │   ├── Project.ts          # Government-data-backed project (root entity), incl. AI riskScore/anomalies
 │   │   │   ├── Report.ts
 │   │   │   └── User.ts
+│   │   ├── ingestion/               # Government open-data pipeline
+│   │   │   ├── fetchers/           # GovApiFetcher (data.gov.in), FileUrlFetcher (CSV/XLSX/XML/ZIP)
+│   │   │   ├── parsers/            # csv/xlsx/json/xml/zip → raw records
+│   │   │   ├── normalizers/        # raw record + field map → canonical Project fields
+│   │   │   ├── schedulers/         # node-cron daily resync
+│   │   │   ├── config.ts           # loads config/gov-data-sources.json
+│   │   │   ├── demoSeed.ts         # labeled demo fallback, seeded only when DB is empty
+│   │   │   └── govDataSyncService.ts
 │   │   ├── prompts/
 │   │   │   └── extractionPrompt.ts # The AI system/user prompt
 │   │   ├── routes/                 # Express routers + OpenAPI JSDoc
@@ -242,13 +255,16 @@ project-sentinel/
 │   │   │   ├── extractionService.ts# Routes file type → extractor
 │   │   │   ├── geocodingService.ts # Google Maps Geocoding
 │   │   │   ├── ocrService.ts       # tesseract.js + sharp
-│   │   │   └── pdfService.ts       # pdfjs-dist
+│   │   │   ├── pdfService.ts       # pdfjs-dist
+│   │   │   ├── projectService.ts   # prefer-real-else-demo project queries
+│   │   │   └── riskEnrichmentService.ts # deterministic risk score + anomaly detection
 │   │   ├── types/index.ts
 │   │   └── utils/
 │   │       ├── AppError.ts
 │   │       ├── logger.ts           # Winston
 │   │       └── schemas.ts          # Zod schemas
 │   ├── scripts/generateDemoPdf.ts  # Synthetic sample document generator
+│   ├── config/gov-data-sources.example.json # Template — copy to gov-data-sources.json to go live
 │   ├── demo/sample-infrastructure-report.pdf
 │   ├── postman/Project-Sentinel.postman_collection.json
 │   ├── uploads/                    # Uploaded files land here (gitignored)
@@ -385,17 +401,55 @@ curl http://localhost:5000/api/report/<documentId>
 
 ---
 
-## ⚠️ Demo Dataset
+## 🏛️ Government Open Data
 
-Real government infrastructure datasets cannot be included in this repository due to privacy, confidentiality, and
-legal restrictions surrounding official records and public-sector data. To make the project runnable and demoable
-out of the box, realistic **synthetic** demo documents are provided instead (see `Backend/demo/` and
-`npm run generate-demo-pdf` above).
+Project Sentinel ingests **official Government of India open data** wherever a real, licensed, publicly accessible
+dataset exists — it does not run on invented project records. The design principle:
 
-The platform's workflow — upload, extraction, OCR, AI analysis, geocoding, risk scoring, and reporting — remains
-**exactly the same** as it would be with real-world infrastructure documents; only the input data is synthetic.
-When deploying this application for actual use, replace the demo documents with your own dataset — the pipeline
-requires no code changes to accept real documents.
+- **Uses official Government Open Data wherever available.** The ingestion pipeline (`Backend/src/ingestion/`) is
+  built against the confirmed, documented [data.gov.in](https://data.gov.in) Open Government Data (OGD) Platform
+  resource API contract (`api-key` + `resource-id` + paginated `format=json`), plus a generic file-based fetcher for
+  datasets published as direct CSV/XLSX/XML/ZIP downloads (the mechanism [NDAP](https://ndap.niti.gov.in) and many
+  ministry portals actually use). Every dataset it syncs is one **you** configure and verify — see
+  `Backend/config/gov-data-sources.example.json` and `GOV_DATA_*` below.
+- **No confidential or restricted government systems are accessed, ever.** Only publicly licensed open-data
+  catalogs and APIs are supported. Internal ministry project-management systems, live contractor payment systems,
+  and any system requiring government-side authorization are out of scope by design — the ingestion pipeline has no
+  code path that could reach them.
+- **Demo data is included only where a real dataset isn't configured yet**, and is always clearly labeled
+  (`isDemo: true`, `sourceProvider: "demo"` on every record, surfaced in the `GET /api/projects`,
+  `GET /api/projects/map`, and `GET /api/dashboard` responses). It is never presented as real, and it automatically
+  stops being served the moment any real project data exists in the database — see `services/projectService.ts`'s
+  prefer-real-else-demo fallback.
+- **AI enrichment runs on whatever is actually in the database** — real synced projects or the labeled demo
+  fallback, never fabricated figures. A deterministic, explainable rule engine
+  (`services/riskEnrichmentService.ts`) computes each project's risk score and flags budget outliers, timeline
+  delays, duplicate locations, and budget-vs-progress mismatches; every finding is recorded as an audit-log entry
+  and surfaced through the existing `GET /api/activity/live` feed.
+
+**To wire in a real dataset:** register a free API key at [data.gov.in](https://data.gov.in), find a real
+infrastructure-related resource (e.g. the Infrastructure sector catalog, or a scheme like PMGSY), copy
+`Backend/config/gov-data-sources.example.json` to `gov-data-sources.json`, fill in the resource id and a field
+mapping for that dataset's actual column names, then set `GOV_DATA_API_KEY` and `GOV_DATA_SOURCES_FILE` in
+`Backend/.env`. The sync runs automatically on startup and every 24 hours thereafter (`GOV_DATA_SYNC_CRON`); history
+of every run — records fetched/created/updated/skipped — is kept in the `GovDataSyncRun` collection.
+
+Full design rationale, including which specific data sources were evaluated and why no resource id ships
+preconfigured, is in [`docs/architecture/BACKEND_V2_ARCHITECTURE.md`](docs/architecture/BACKEND_V2_ARCHITECTURE.md).
+
+---
+
+## ⚠️ Demo Dataset (document-analysis pipeline)
+
+The document upload → OCR → AI-analysis pipeline (`POST /api/upload`, `POST /api/analyze/:id`) is separate from
+project-level government data above — it's the mechanism by which **uploaded evidence enriches a project's
+record**. Real government infrastructure *documents* (contracts, invoices, progress certificates) can't be included
+in this repository for the same privacy/confidentiality/legal reasons as above, so a realistic **synthetic** demo
+document is provided instead (see `Backend/demo/` and `npm run generate-demo-pdf` above).
+
+The pipeline's workflow — extraction, OCR, AI analysis, geocoding, risk scoring, and reporting — remains **exactly
+the same** as it would be with real-world documents; only the input file is synthetic. Uploading a real document
+against a real (gov-data-sourced) project requires no code changes.
 
 ---
 
@@ -419,6 +473,11 @@ requires no code changes to accept real documents.
 | `MAX_FILE_SIZE_MB` | No | `25` | Multer upload size limit |
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate-limit window (15 min) |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window per IP |
+| `GOV_DATA_API_KEY` | For real gov-api sources | *(empty)* | Shared data.gov.in account key, used across all configured resource ids |
+| `GOV_DATA_API_BASE_URL` | No | `https://api.data.gov.in` | OGD Platform API base URL |
+| `GOV_DATA_SOURCES_FILE` | No | *(empty)* | Path to your dataset config (see `config/gov-data-sources.example.json`); unset ⇒ demo data only |
+| `GOV_DATA_SYNC_CRON` | No | `0 3 * * *` | Cron schedule for the automatic resync |
+| `GOV_DATA_SYNC_ON_STARTUP` | No | `true` | Also sync once immediately when the server boots |
 
 `aiService.ts` calls `POST {AI_API_URL}/chat/completions` with an OpenAI-compatible body — works with OpenAI, Groq,
 OpenRouter, or any compatible proxy by editing `.env` only. Native Gemini's API shape differs and would need
@@ -462,14 +521,24 @@ Full interactive Swagger UI is served at `GET /api-docs` once the backend is run
 </details>
 
 <details>
+<summary><b>Projects (government open data)</b></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/projects` | Paginated/filterable/searchable project list. Query: `page`, `limit`, `state`, `department`, `status`, `q`. Real (gov-data-sourced) records are served whenever any exist; falls back to the labeled demo dataset (`isDemo: true` in the response) only when none do. |
+| `GET` | `/api/projects/:id` | Single project, including its AI-computed `riskScore` and `anomalies[]`. |
+
+</details>
+
+<details>
 <summary><b>Dashboard, Timeline, Map, Activity</b></summary>
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/dashboard` | Aggregate stats: totals, status/type breakdowns, avg. risk/confidence, high-risk count, 5 most recent documents. |
+| `GET` | `/api/dashboard` | Aggregate stats: document/report totals, status/type breakdowns, avg. risk/confidence, plus a `projects` block (status/state/department rollups, average risk score, 5 most recent projects). |
 | `GET` | `/api/timeline/:id` | Report timeline/progress + chronological audit-log events for one document. |
-| `GET` | `/api/projects/map` | Geocoded report points with a computed `risk` tier (`low`/`medium`/`high`) and `health` score, for map rendering. |
-| `GET` | `/api/activity/live?limit=20` | Newest-first audit events with a human-readable title and derived severity. |
+| `GET` | `/api/projects/map` | Map points merged from AI-analyzed documents and geocoded government-data projects, with a computed `risk` tier (`low`/`medium`/`high`) and `health` score. Same demo-fallback rule as `/api/projects`. |
+| `GET` | `/api/activity/live?limit=20` | Newest-first audit events — document uploads/analyses, AI anomaly findings, and government-data sync runs — with a human-readable title and derived severity. |
 | `GET` | `/health` | Liveness check. |
 
 </details>

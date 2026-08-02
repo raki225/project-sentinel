@@ -18,6 +18,17 @@ function describeActivity(log: IAuditLog): { title: string; severity: Severity }
     }
     case "document.delete":
       return { title: `Document deleted — ${meta.originalName ?? "file"}`, severity: "low" };
+    case "project.anomaly_detected": {
+      const severity = (meta.severity as Severity) ?? "low";
+      return { title: `AI flagged ${meta.type ?? "an anomaly"} — ${meta.projectName ?? "project"}`, severity };
+    }
+    case "govdata.sync": {
+      const created = Number(meta.created ?? 0);
+      return {
+        title: `Government data synced — ${created} new project(s) from ${meta.provider ?? "source"}`,
+        severity: "low",
+      };
+    }
     default:
       return { title: log.action, severity: "low" };
   }

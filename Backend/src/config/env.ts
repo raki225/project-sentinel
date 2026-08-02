@@ -28,6 +28,19 @@ export const env = {
 
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
 
+  govData: {
+    apiKey: process.env.GOV_DATA_API_KEY ?? "",
+    apiBaseUrl: process.env.GOV_DATA_API_BASE_URL ?? "https://api.data.gov.in",
+    // Path to a JSON file listing which real datasets to sync — see
+    // Backend/config/gov-data-sources.example.json. Left unset by default;
+    // with nothing configured, the system serves clearly-labeled demo data.
+    sourcesFile: process.env.GOV_DATA_SOURCES_FILE
+      ? path.resolve(__dirname, "../../", process.env.GOV_DATA_SOURCES_FILE)
+      : "",
+    syncCron: process.env.GOV_DATA_SYNC_CRON ?? "0 3 * * *", // daily at 03:00
+    syncOnStartup: (process.env.GOV_DATA_SYNC_ON_STARTUP ?? "true") === "true",
+  },
+
   corsOrigins: (process.env.CORS_ORIGIN ?? "http://localhost:3000")
     .split(",")
     .map((origin) => origin.trim())

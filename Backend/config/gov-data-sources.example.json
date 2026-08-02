@@ -1,0 +1,35 @@
+[
+  {
+    "_comment": "Example gov-api source. Copy this file to gov-data-sources.json, replace resourceId with a real resource ID you've verified on your own data.gov.in account (browse https://www.data.gov.in/sector/Infrastructure or search a scheme like PMGSY, then copy the resource id from the dataset's URL). apiKey is NOT set here — it comes from GOV_DATA_API_KEY at sync time.",
+    "kind": "gov-api",
+    "provider": "data.gov.in",
+    "resourceId": "REPLACE_WITH_A_REAL_RESOURCE_ID",
+    "fieldMap": {
+      "project": ["Scheme Name", "Project Name", "Name of Work"],
+      "recordId": ["S.No", "Sl No", "Id"],
+      "department": ["Department", "Implementing Agency"],
+      "state": ["State", "State Name"],
+      "district": ["District", "District Name"],
+      "budget": ["Sanctioned Amount", "Budget", "Cost (Rs. in Crore)"],
+      "progress": ["Physical Progress (%)", "Progress"],
+      "startDate": ["Start Date", "Date of Commencement"],
+      "expectedCompletion": ["Scheduled Completion Date", "Target Date"],
+      "contractor": ["Contractor", "Executing Agency"],
+      "fundingSource": ["Funding Source", "Scheme"]
+    }
+  },
+  {
+    "_comment": "Example file-url source — for datasets only published as a bulk CSV/XLSX/ZIP download (e.g. NDAP, PMGSY GeoSadak) rather than a keyed API. No API key needed.",
+    "kind": "file-url",
+    "provider": "ndap",
+    "url": "https://REPLACE_WITH_A_REAL_DATASET_DOWNLOAD_URL.csv",
+    "fieldMap": {
+      "project": ["Project Name"],
+      "department": ["Department"],
+      "state": ["State"],
+      "district": ["District"],
+      "budget": ["Budget (Cr)"],
+      "progress": ["Progress %"]
+    }
+  }
+]
