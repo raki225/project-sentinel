@@ -39,6 +39,35 @@ accordingly — nothing here is aspirational marketing copy.
 
 ---
 
+> [!IMPORTANT]
+> ## 🔴 Demo Data Disclaimer
+>
+> **Project Sentinel does NOT contain or use any real Government, Public Infrastructure, or Confidential data.**
+>
+> All documents, reports, invoices, images, maps, dashboards, AI outputs, project records, analytics, and datasets included in this repository are **synthetically generated demo data** created solely to demonstrate the platform's workflow, AI capabilities, and user experience.
+>
+> This project was built for educational purposes, research, hackathons, and portfolio demonstrations.
+>
+> **No official government datasets, classified documents, confidential infrastructure records, or sensitive public-sector information are stored, processed, or distributed within this repository.**
+>
+> The demo dataset is included only to demonstrate the complete workflow, including:
+>
+> - Document Upload
+> - OCR & Text Extraction
+> - AI Document Analysis
+> - Image Verification
+> - Risk Assessment
+> - Fraud Detection
+> - Timeline Analysis
+> - Interactive Dashboard
+> - Explainable AI Insights
+> - Report Generation
+> - End-to-End Infrastructure Monitoring Workflow
+>
+> **Any resemblance to actual projects, government departments, contracts, organizations, or locations is purely coincidental.**
+
+---
+
 ## ✅🚧🔮 Features
 
 ### ✅ Implemented — Backend (`Backend/`)
@@ -353,6 +382,20 @@ curl -F "file=@Backend/demo/sample-infrastructure-report.pdf" http://localhost:5
 curl -X POST http://localhost:5000/api/analyze/<documentId>
 curl http://localhost:5000/api/report/<documentId>
 ```
+
+---
+
+## ⚠️ Demo Dataset
+
+Real government infrastructure datasets cannot be included in this repository due to privacy, confidentiality, and
+legal restrictions surrounding official records and public-sector data. To make the project runnable and demoable
+out of the box, realistic **synthetic** demo documents are provided instead (see `Backend/demo/` and
+`npm run generate-demo-pdf` above).
+
+The platform's workflow — upload, extraction, OCR, AI analysis, geocoding, risk scoring, and reporting — remains
+**exactly the same** as it would be with real-world infrastructure documents; only the input data is synthetic.
+When deploying this application for actual use, replace the demo documents with your own dataset — the pipeline
+requires no code changes to accept real documents.
 
 ---
 
