@@ -28,7 +28,10 @@ export const env = {
 
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
 
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  corsOrigins: (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 
   uploadDir: path.resolve(__dirname, "../../", process.env.UPLOAD_DIR ?? "uploads"),
   reportsDir: path.resolve(__dirname, "../../reports"),
