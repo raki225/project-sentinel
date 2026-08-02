@@ -5,6 +5,8 @@ import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest } from "../types";
 import { findProjectsPreferReal } from "../services/projectService";
+import { isDbConnected } from "../config/database";
+import { MOCK_DEMO_PROJECTS } from "../utils/demoData";
 
 export const listProjects = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -34,6 +36,13 @@ export const listProjects = asyncHandler(async (req: AuthenticatedRequest, res: 
 
 export const getProjectById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
+
+  if (!isDbConnected()) {
+    const project = (MOCK_DEMO_PROJECTS as unknown as IProject[]).find((p) => p.id === id || (p as any)._id === id) ?? MOCK_DEMO_PROJECTS[0];
+    res.status(200).json({ success: true, isDemo: true, project });
+    return;
+  }
+
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid project id", 400);
   }

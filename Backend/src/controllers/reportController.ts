@@ -5,9 +5,23 @@ import { DocumentModel } from "../models/Document";
 import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest } from "../types";
+import { isDbConnected } from "../config/database";
+import { MOCK_DEMO_REPORT } from "../utils/demoData";
 
 export const getReport = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
+
+  if (!isDbConnected()) {
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      documentId: id || "demo-doc-1",
+      fileName: "coastal_ring_road_audit.pdf",
+      status: "analyzed",
+      report: MOCK_DEMO_REPORT,
+    });
+    return;
+  }
 
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid document id", 400);

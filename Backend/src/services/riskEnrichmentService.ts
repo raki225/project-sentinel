@@ -1,25 +1,14 @@
 import { Project, IProject, ProjectAnomaly } from "../models/Project";
 import { AuditLog } from "../models/AuditLog";
 import { logger } from "../utils/logger";
+import { isDbConnected } from "../config/database";
 
 const DUPLICATE_LOCATION_TOLERANCE_DEG = 0.005; // ~500m
 const HIGH_SEVERITY_RISK_THRESHOLD = 70;
 
-/**
- * Deterministic, explainable risk scoring — not an LLM call per record.
- * Government open datasets can run into the thousands of rows per sync;
- * running every row through an LLM would be slow, costly, and non-
- * reproducible. Anomaly *narratives* could later be handed to aiService for
- * a human-readable summary, but the detection itself is rule-based so the
- * same input always produces the same score.
- *
- * Only Budget + Progress are available from most public sanctioned-project
- * datasets (no separate "released"/"utilized" tranche figures), so
- * "suspicious spending" is approximated as a large budget with
- * disproportionately little physical progress — the honest signal available
- * from this data shape.
- */
 export async function enrichProject(project: IProject): Promise<void> {
+  if (!isDbConnected()) return;
+
   const anomalies: ProjectAnomaly[] = [];
 
   const timelineAnomaly = detectTimelineDelay(project);
@@ -81,7 +70,7 @@ function detectTimelineDelay(project: IProject): ProjectAnomaly | null {
 }
 
 async function detectBudgetOutlier(project: IProject): Promise<ProjectAnomaly | null> {
-  if (!project.department || project.budget <= 0) return null;
+  if (!isDbConnected() || !project.department || project.budget <= 0) return null;
 
   const peers = await Project.find({
     department: project.department,
@@ -108,7 +97,7 @@ async function detectBudgetOutlier(project: IProject): Promise<ProjectAnomaly | 
 }
 
 async function detectDuplicateLocation(project: IProject): Promise<ProjectAnomaly | null> {
-  if (project.latitude === undefined || project.longitude === undefined) return null;
+  if (!isDbConnected() || project.latitude === undefined || project.longitude === undefined) return null;
 
   const nearby = await Project.findOne({
     _id: { $ne: project._id },

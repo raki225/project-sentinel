@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { BrandMark } from "@/components/sentinel/brand-mark"
+import { UserProfileMenu } from "@/components/sentinel/user-profile-menu"
 import { cn } from "@/lib/utils"
 
 const NAV = [
@@ -96,6 +97,7 @@ export function SiteHeader() {
             <span className="text-xs font-medium text-muted-foreground">Live ledger synced</span>
           </div>
           <ModeToggle />
+          <UserProfileMenu />
           <button
             type="button"
             aria-label="Toggle menu"

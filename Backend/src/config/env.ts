@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import path from "path";
 
+dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 function required(name: string, fallback?: string): string {
@@ -17,7 +18,7 @@ export const env = {
 
   mongodbUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/project_sentinel"),
 
-  jwtSecret: required("JWT_SECRET"),
+  jwtSecret: required("JWT_SECRET", "change_this_dev_secret_before_production"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
 
   ai: {

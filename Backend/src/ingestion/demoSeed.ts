@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Project } from "../models/Project";
 import { logger } from "../utils/logger";
+import { isDbConnected } from "../config/database";
 
 /**
  * A small, explicitly-labeled (`isDemo: true`, `sourceProvider: "demo"`)
@@ -47,6 +48,8 @@ const DEMO_PROJECTS = [
 ];
 
 export async function seedDemoProjectsIfEmpty(): Promise<void> {
+  if (!isDbConnected()) return;
+
   const count = await Project.countDocuments();
   if (count > 0) return;
 

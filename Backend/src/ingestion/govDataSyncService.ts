@@ -137,7 +137,14 @@ async function syncOneSource(config: DatasetSourceConfig): Promise<void> {
  * this is the honest fallback required by
  * docs/architecture/BACKEND_V2_ARCHITECTURE.md §11 / product requirement #12.
  */
+import { isDbConnected } from "../config/database";
+
 export async function runGovDataSync(): Promise<void> {
+  if (!isDbConnected()) {
+    logger.warn("MongoDB unavailable — skipping background gov data sync. Serving in-memory demo data.");
+    return;
+  }
+
   const sources = loadDatasetSources();
 
   if (sources.length === 0) {

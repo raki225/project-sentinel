@@ -11,6 +11,9 @@ import { geocodeLocation } from "../services/geocodingService";
 import { AuthenticatedRequest } from "../types";
 import { logger } from "../utils/logger";
 
+import { isDbConnected } from "../config/database";
+import { MOCK_DEMO_REPORT } from "../utils/demoData";
+
 function toStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
   return [];
@@ -27,6 +30,16 @@ function toBoolean(value: unknown): boolean {
 
 export const analyzeDocument = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
+
+  if (!isDbConnected()) {
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      documentId: id || "demo-doc-1",
+      report: MOCK_DEMO_REPORT,
+    });
+    return;
+  }
 
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid document id", 400);

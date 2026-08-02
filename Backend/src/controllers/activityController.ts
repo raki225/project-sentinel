@@ -2,6 +2,8 @@ import { Response } from "express";
 import { AuditLog, IAuditLog } from "../models/AuditLog";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest } from "../types";
+import { isDbConnected } from "../config/database";
+import { MOCK_DEMO_ACTIVITIES } from "../utils/demoData";
 
 type Severity = "low" | "medium" | "high";
 
@@ -35,6 +37,15 @@ function describeActivity(log: IAuditLog): { title: string; severity: Severity }
 }
 
 export const getLiveActivity = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!isDbConnected()) {
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      activity: MOCK_DEMO_ACTIVITIES,
+    });
+    return;
+  }
+
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
 
   const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(limit);

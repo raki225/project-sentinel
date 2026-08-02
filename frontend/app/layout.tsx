@@ -5,15 +5,16 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { QueryProvider } from '@/providers/query-provider'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
+import { AuthProvider } from '@/providers/auth-provider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' })
 
 export const metadata: Metadata = {
-  title: 'Project Sentinel — Public Infrastructure Transparency',
+  title: 'Project Sentinel — Multi-Role Government Infrastructure Oversight',
   description:
-    'AI-powered public infrastructure transparency platform. Ensuring every sanctioned public rupee is spent only on its intended government project through verification and evidence-backed auditing.',
+    'AI-powered national public infrastructure oversight platform. Multi-role authentication & role-based dashboards for Super Admins, Government Officers, Vendors, Forensic Auditors, and Citizens.',
   generator: 'v0.app',
 }
 
@@ -35,9 +36,11 @@ export default function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <QueryProvider>
-            <SiteHeader />
-            <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-            <SiteFooter />
+            <AuthProvider>
+              <SiteHeader />
+              <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+              <SiteFooter />
+            </AuthProvider>
           </QueryProvider>
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </ThemeProvider>

@@ -1,6 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
+import dynamic from "next/dynamic"
+import { DashboardLayout } from "@/components/sentinel/dashboard-layout"
+import { PROJECTS, formatCrore } from "@/lib/sentinel-data"
 import {
   Search,
   MapPin,
@@ -12,247 +15,364 @@ import {
   ShieldCheck,
   Send,
   Sparkles,
+  AlertTriangle,
+  Camera,
+  Clock,
+  Filter,
+  Check,
 } from "lucide-react"
-import { Kicker, StatusPill, AnimatedNumber } from "@/components/sentinel/primitives"
-import { PROJECTS, formatCrore } from "@/lib/sentinel-data"
 import { cn } from "@/lib/utils"
 
-const NEAR = PROJECTS.slice(0, 4)
+const ProjectMap = dynamic(() => import("@/components/sentinel/project-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-[320px] place-items-center rounded-xl border border-border bg-card/40">
+      <span className="text-xs text-muted-foreground">Loading Public Infrastructure Map…</span>
+    </div>
+  ),
+})
 
-const PLAIN_STATUS: Record<string, string> = {
-  verified: "On track and verified",
-  pending: "Being checked",
-  flagged: "Needs a closer look",
-}
+const MOCK_COMPLAINTS = [
+  { id: "GRV-9428", project: "Hyderabad Outer Ring Road Expansion", category: "Pothole & Surface Damage", date: "Aug 1, 2026", status: "Under Investigation", dept: "PWD Telangana", notes: "Assigned to Superintending Engineer Er. Vikram Reddy" },
+  { id: "GRV-9402", project: "Godavari Drinking Water Pipeline", category: "Pipe Leakage & Delay", date: "Jul 25, 2026", status: "Resolved", dept: "Water Resources Dept", notes: "Contractor re-sealed pipeline junction. Verified by AI drone scan." },
+]
 
 export default function CitizenPage() {
-  const [q, setQ] = useState("")
-  const [sent, setSent] = useState(false)
+  const [activeTab, setActiveTab] = useState<"search" | "map" | "complain" | "track">("search")
+  const [query, setQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  
+  // Grievance form state
+  const [projectName, setProjectName] = useState("")
+  const [description, setDescription] = useState("")
+  const [photoName, setPhotoName] = useState("")
+  const [submittedId, setSubmittedId] = useState<string | null>(null)
 
-  const results = q
-    ? PROJECTS.filter((p) => `${p.name} ${p.state} ${p.category}`.toLowerCase().includes(q.toLowerCase()))
-    : NEAR
+  const [trackId, setTrackId] = useState("")
+  const [trackResult, setTrackResult] = useState<any>(null)
+
+  const filteredProjects = PROJECTS.filter((p) => {
+    if (selectedCategory && p.category !== selectedCategory) return false
+    if (query && !`${p.name} ${p.state} ${p.category} ${p.department}`.toLowerCase().includes(query.toLowerCase())) {
+      return false
+    }
+    return true
+  })
+
+  const handleSubmitGrievance = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!projectName || !description) return
+    const id = `GRV-${Math.floor(9000 + Math.random() * 999)}`
+    setSubmittedId(id)
+  }
+
+  const handleTrackComplaint = (e: React.FormEvent) => {
+    e.preventDefault()
+    const found = MOCK_COMPLAINTS.find((c) => c.id.toLowerCase() === trackId.trim().toLowerCase())
+    if (found) {
+      setTrackResult(found)
+    } else {
+      setTrackResult({
+        id: trackId.toUpperCase(),
+        project: "Public Infrastructure Road",
+        category: "General Grievance",
+        date: "Today",
+        status: "Received & AI Processing",
+        dept: "Public Works Department",
+        notes: "Your complaint has been logged and sent to the district engineer.",
+      })
+    }
+  }
 
   return (
-    <div>
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-primary/10 to-transparent">
-        <div className="mx-auto max-w-[1400px] px-4 py-16 text-center sm:px-6 lg:py-24">
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-1.5 text-sm font-medium text-primary">
-            <Heart className="size-4" /> Built for every citizen
-          </div>
-          <h1 className="mx-auto mt-6 max-w-3xl font-display text-4xl font-bold leading-tight tracking-tight text-balance sm:text-5xl">
-            See how public money is being spent{" "}
-            <span className="text-primary">near you.</span>
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground text-pretty">
-            No jargon. No paperwork. Just a clear, honest view of the projects your taxes are paying for — and a way to
-            speak up when something looks wrong.
-          </p>
+    <DashboardLayout
+      allowedRoles={["citizen", "super_admin", "government", "auditor", "vendor"]}
+      title="Public Infrastructure Transparency & Citizen Grievance Portal"
+      subtitle="Search any public project across India, view real-time AI transparency ratings, inspect verified budget allocations, and submit geo-tagged public grievances."
+    >
+      {/* Public KPIs Banner */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Public Money Tracked</span>
+          <p className="mt-1 font-display text-2xl font-extrabold text-primary">₹84,240 Cr</p>
+          <span className="text-[10px] text-muted-foreground">Open Government Ledger</span>
+        </div>
 
-          <div className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
-            <div className="flex flex-1 items-center gap-2 pl-3">
-              <Search className="size-5 text-muted-foreground" />
+        <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Public AI Transparency Index</span>
+          <p className="mt-1 font-display text-2xl font-extrabold text-verified">94 / 100</p>
+          <span className="text-[10px] text-verified font-medium">Verified Evidence Rating</span>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Citizen Reports Filed</span>
+          <p className="mt-1 font-display text-2xl font-extrabold text-cyan-400">26,800</p>
+          <span className="text-[10px] text-muted-foreground">Community Supervised</span>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Issues Acted On</span>
+          <p className="mt-1 font-display text-2xl font-extrabold text-accent-teal">3,172</p>
+          <span className="text-[10px] text-muted-foreground">Resolved by Govt Officers</span>
+        </div>
+      </div>
+
+      {/* Tabs Bar */}
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-1.5 text-xs font-semibold">
+          {[
+            { id: "search", label: "Search Public Projects", icon: Search },
+            { id: "map", label: "Public Infrastructure Map", icon: MapPin },
+            { id: "complain", label: "Submit Geo-Grievance", icon: AlertTriangle },
+            { id: "track", label: "Track Grievance Status", icon: Clock },
+          ].map((tab) => {
+            const Icon = tab.icon
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3.5 py-2 transition-all",
+                  active
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="size-4" />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* TAB 1: Search Public Projects */}
+      {activeTab === "search" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="rounded-2xl border border-border bg-card/60 p-4 flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search your city, district or project…"
-                className="w-full bg-transparent py-2 text-base outline-none placeholder:text-muted-foreground"
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search projects by city, state, or contractor name…"
+                className="w-full rounded-xl border border-border bg-background/50 pl-9 pr-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
-            <button className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
-              Search
-            </button>
-          </div>
-          <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-            <span>Popular:</span>
-            {["Roads", "Water", "Schools", "Hospitals"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setQ(t)}
-                className="rounded-full border border-border bg-card px-2.5 py-0.5 transition-colors hover:border-primary/40"
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Citizen stats */}
-      <section className="border-b border-border">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-6 px-4 py-10 text-center sm:px-6 lg:grid-cols-4">
-          {[
-            { v: 1284, s: "projects you can watch" },
-            { v: 84240, s: "crore being tracked", prefix: "₹" },
-            { v: 26800, s: "citizen reports filed" },
-            { v: 3172, s: "issues acted on" },
-          ].map((x) => (
-            <div key={x.s}>
-              <div className="font-display text-3xl font-bold text-primary">
-                <AnimatedNumber value={x.v} prefix={x.prefix ?? ""} />
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">{x.s}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Projects near you */}
-      <section className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Kicker>{q ? "Search results" : "Projects near you"}</Kicker>
-            <h2 className="mt-4 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-              {q ? `Showing matches for “${q}”` : "Happening in your area"}
-            </h2>
-          </div>
-        </div>
-
-        {results.length === 0 ? (
-          <div className="mt-8 grid place-items-center rounded-2xl border border-dashed border-border bg-card/40 py-16 text-center">
-            <MapPin className="size-8 text-muted-foreground" />
-            <h3 className="mt-3 font-display font-bold">Nothing found for that search</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Try a broader term like your district name or a category such as “water”.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {results.map((p, i) => (
-              <div
-                key={p.id}
-                className="animate-rise flex flex-col gap-4 rounded-2xl border border-border bg-card p-6"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="size-3.5" /> {p.state}
-                    </div>
-                    <h3 className="mt-1 font-display text-lg font-bold text-balance">{p.name}</h3>
-                  </div>
-                  <StatusPill status={p.status === "pending" ? "pending" : p.status === "flagged" ? "flagged" : "verified"}>
-                    {PLAIN_STATUS[p.status]}
-                  </StatusPill>
-                </div>
-
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">How far along</span>
-                    <span className="font-semibold">{p.progress}% done</span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${p.progress}%` }} />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-border pt-4">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Budget: </span>
-                    <span className="font-display font-bold">{formatCrore(p.sanctioned)}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <button className="inline-flex items-center gap-1.5 transition-colors hover:text-primary">
-                      <Eye className="size-4" /> Watch
-                    </button>
-                    <button className="inline-flex items-center gap-1.5 transition-colors hover:text-verified">
-                      <ThumbsUp className="size-4" /> 128
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Report an issue */}
-      <section className="border-t border-border bg-card/40">
-        <div className="mx-auto grid max-w-[1400px] gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center">
-          <div>
-            <Kicker>Your voice matters</Kicker>
-            <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-balance">
-              Spot something wrong? Tell us.
-            </h2>
-            <p className="mt-4 max-w-md text-muted-foreground">
-              If a road stops halfway, a building looks unfinished, or the work doesn&apos;t match what was promised —
-              your report goes straight into the AI verification queue, anonymously and safely.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {[
-                "Reports are anonymous by default",
-                "AI checks it against project evidence",
-                "You get notified when action is taken",
-              ].map((t) => (
-                <li key={t} className="flex items-center gap-3 text-sm">
-                  <CheckCircle2 className="size-5 shrink-0 text-verified" />
-                  {t}
-                </li>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-muted-foreground">Category:</span>
+              {["All", "Highways & Roads", "Water Resources", "Urban Infrastructure", "Health"].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat === "All" ? null : cat)}
+                  className={cn(
+                    "rounded-lg border px-2.5 py-1 text-xs transition-all",
+                    (cat === "All" && !selectedCategory) || selectedCategory === cat
+                      ? "border-primary bg-primary/10 font-bold text-primary"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {cat}
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            {sent ? (
-              <div className="grid place-items-center py-10 text-center">
-                <div className="grid size-14 place-items-center rounded-full bg-verified/15 text-verified">
-                  <ShieldCheck className="size-7" />
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredProjects.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-border bg-card/60 p-6 space-y-4 backdrop-blur shadow-md">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                      <MapPin className="size-3 text-primary" /> {p.state} • {p.department}
+                    </span>
+                    <h3 className="font-display text-lg font-bold text-foreground mt-0.5">{p.name}</h3>
+                  </div>
+
+                  <span className={cn(
+                    "rounded-full px-3 py-1 text-xs font-bold border",
+                    p.status === "verified" ? "bg-verified/15 text-verified border-verified/30" :
+                    p.status === "pending" ? "bg-amber-500/15 text-amber-500 border-amber-500/30" :
+                    "bg-destructive/15 text-destructive border-destructive/30"
+                  )}>
+                    {p.status === "verified" ? "Verified On-Track" : p.status === "pending" ? "Under AI Review" : "Flagged Issue"}
+                  </span>
                 </div>
-                <h3 className="mt-4 font-display text-lg font-bold">Report received</h3>
-                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                  Thank you. Sentinel is now cross-checking your report against project evidence. Reference:
-                  <span className="font-mono font-medium text-foreground"> CR-90418</span>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Work Completed</span>
+                    <span className="font-bold text-foreground">{p.progress}%</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${p.progress}%` }} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-border pt-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Sanctioned Public Budget</span>
+                    <span className="font-display font-bold text-sm text-foreground">{formatCrore(p.sanctioned)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-accent-teal/10 text-accent-teal border border-accent-teal/30 px-2 py-1 text-[11px] font-bold">
+                      AI Transparency Score: 96%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: Map */}
+      {activeTab === "map" && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="rounded-2xl border border-border bg-card/80 p-2 shadow-xl backdrop-blur">
+            <ProjectMap />
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: Grievance Submission */}
+      {activeTab === "complain" && (
+        <div className="space-y-6 animate-in fade-in duration-300 max-w-2xl mx-auto">
+          <div className="rounded-3xl border border-border bg-card/80 p-6 sm:p-8 space-y-6 backdrop-blur shadow-2xl">
+            <div>
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <AlertTriangle className="size-5 text-amber-500" /> Submit Public Infrastructure Grievance
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your report is analyzed by AI models against project satellite imagery & geotagged photos, and routed directly to the department chief engineer.
+              </p>
+            </div>
+
+            {submittedId ? (
+              <div className="rounded-2xl border border-verified/40 bg-verified/10 p-6 text-center space-y-3">
+                <div className="grid size-12 place-items-center rounded-full bg-verified text-verified-foreground mx-auto">
+                  <CheckCircle2 className="size-6" />
+                </div>
+                <h4 className="font-display text-base font-bold text-foreground">Grievance Successfully Logged</h4>
+                <p className="text-xs text-muted-foreground">
+                  Reference Tracking ID: <strong className="text-primary font-mono text-sm">{submittedId}</strong>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your report has been queued for AI anomaly validation and transmitted to PWD Telangana.
                 </p>
                 <button
-                  onClick={() => setSent(false)}
-                  className="mt-5 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-primary/40"
+                  type="button"
+                  onClick={() => setSubmittedId(null)}
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted"
                 >
-                  File another
+                  Submit Another Report
                 </button>
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setSent(true)
-                }}
-                className="space-y-4"
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <MessageSquarePlus className="size-4 text-primary" /> Report an issue
-                </div>
+              <form onSubmit={handleSubmitGrievance} className="space-y-4 text-xs">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Which project?</label>
+                  <label className="font-semibold text-muted-foreground">Which Project or Location?</label>
                   <input
+                    type="text"
                     required
-                    placeholder="e.g. the new road near my village"
-                    className="mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/50"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. Hyderabad Outer Ring Road near Exit 8"
+                    className="mt-1 w-full rounded-xl border border-border bg-background/50 p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
+
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">What did you notice?</label>
+                  <label className="font-semibold text-muted-foreground">What Discrepancy Did You Notice?</label>
                   <textarea
                     required
                     rows={4}
-                    placeholder="Describe what looks wrong in your own words…"
-                    className="mt-1.5 w-full resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/50"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe the issue in plain words (e.g. road surfacing stopped halfway, poor concrete quality, delayed drainage work)..."
+                    className="mt-1 w-full rounded-xl border border-border bg-background/50 p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
+
+                <div>
+                  <label className="font-semibold text-muted-foreground">Attach Photo / Evidence File (Optional)</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={photoName}
+                      onChange={(e) => setPhotoName(e.target.value)}
+                      placeholder="e.g. Pothole_Photo_Aug2026.jpg"
+                      className="flex-1 rounded-xl border border-border bg-background/50 p-2.5 text-xs text-foreground focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoName("Pothole_SitePhoto_Geotag.jpg")}
+                      className="rounded-xl border border-border bg-card px-3 py-2.5 font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      <Camera className="size-4" />
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                  className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground shadow-lg hover:bg-primary/90"
                 >
-                  <Send className="size-4" /> Submit report
+                  Transmit Grievance to Sentinel AI Engine
                 </button>
-                <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                  <Sparkles className="size-3 text-primary" /> Reviewed by AI within minutes
-                </p>
               </form>
             )}
           </div>
         </div>
-      </section>
-    </div>
+      )}
+
+      {/* TAB 4: Track Grievance */}
+      {activeTab === "track" && (
+        <div className="space-y-6 animate-in fade-in duration-300 max-w-xl mx-auto">
+          <div className="rounded-3xl border border-border bg-card/80 p-6 sm:p-8 space-y-4 backdrop-blur shadow-2xl">
+            <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+              <Clock className="size-5 text-primary" /> Track Grievance Status
+            </h3>
+            <p className="text-xs text-muted-foreground">Enter your 7-character grievance tracking reference code</p>
+
+            <form onSubmit={handleTrackComplaint} className="flex gap-2">
+              <input
+                type="text"
+                required
+                value={trackId}
+                onChange={(e) => setTrackId(e.target.value)}
+                placeholder="e.g. GRV-9428"
+                className="flex-1 rounded-xl border border-border bg-background/50 p-3 font-mono text-sm text-foreground focus:outline-none"
+              />
+              <button type="submit" className="rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground">
+                Search ID
+              </button>
+            </form>
+
+            {trackResult && (
+              <div className="rounded-2xl border border-border bg-background p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-primary">{trackResult.id}</span>
+                  <span className="rounded-full bg-verified/10 text-verified border border-verified/30 px-2.5 py-0.5 text-[10px] font-bold">
+                    {trackResult.status}
+                  </span>
+                </div>
+                <h4 className="font-bold text-foreground text-sm">{trackResult.project}</h4>
+                <p className="text-muted-foreground">Category: {trackResult.category} • Department: {trackResult.dept}</p>
+                <p className="bg-card p-2.5 rounded-lg border border-border text-foreground font-medium">
+                  {trackResult.notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
   )
 }

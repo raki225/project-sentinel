@@ -5,6 +5,7 @@ import { ProjectStatus } from "../models/Project";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest, DocumentStatus, DocumentType } from "../types";
 import { findProjectsPreferReal } from "../services/projectService";
+import { isDbConnected } from "../config/database";
 
 const HIGH_RISK_THRESHOLD = 70;
 
@@ -24,7 +25,7 @@ async function buildProjectStats() {
   }
 
   const recentProjects = [...projects]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0))
     .slice(0, 5)
     .map((p) => ({
       projectId: p.id,
@@ -48,6 +49,40 @@ async function buildProjectStats() {
 
 export const getDashboardStats = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
   const projectStats = await buildProjectStats();
+
+  if (!isDbConnected()) {
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      projects: projectStats,
+      stats: {
+        totalDocuments: 2,
+        totalReports: 2,
+        statusCounts: { analyzed: 2 },
+        typeCounts: { audit_report: 1, invoice: 1 },
+        averageRiskScore: 35,
+        averageConfidence: 85,
+        highRiskCount: 0,
+      },
+      recentDocuments: [
+        {
+          documentId: "demo-doc-1",
+          fileName: "coastal_ring_road_audit.pdf",
+          type: "audit_report",
+          status: "analyzed",
+          createdAt: new Date("2026-01-01"),
+        },
+        {
+          documentId: "demo-doc-2",
+          fileName: "water_treatment_invoice.pdf",
+          type: "invoice",
+          status: "analyzed",
+          createdAt: new Date("2026-01-02"),
+        },
+      ],
+    });
+    return;
+  }
 
   const [totalDocuments, statusAgg, typeAgg, riskAgg, recentDocuments, highRiskCount] = await Promise.all([
     DocumentModel.countDocuments(),

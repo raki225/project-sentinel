@@ -8,8 +8,25 @@ import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest } from "../types";
 import { logger } from "../utils/logger";
+import { isDbConnected } from "../config/database";
+import { MOCK_DEMO_DOCUMENTS } from "../utils/demoData";
 
 export const listDocuments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!isDbConnected()) {
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      documents: MOCK_DEMO_DOCUMENTS,
+      pagination: {
+        page: 1,
+        limit: 20,
+        total: MOCK_DEMO_DOCUMENTS.length,
+        pages: 1,
+      },
+    });
+    return;
+  }
+
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
@@ -50,6 +67,11 @@ export const listDocuments = asyncHandler(async (req: AuthenticatedRequest, res:
 
 export const deleteDocument = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
+
+  if (!isDbConnected()) {
+    res.status(200).json({ success: true, isDemo: true, documentId: id });
+    return;
+  }
 
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid document id", 400);
