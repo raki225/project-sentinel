@@ -29,8 +29,8 @@ export const getTimeline = asyncHandler(async (req: AuthenticatedRequest, res: R
     documentId: doc.id,
     fileName: doc.originalName,
     status: doc.status,
-    projectTimeline: report?.timeline ?? null,
-    progress: report?.progress ?? null,
+    projectTimeline: report?.projectTimeline ?? null,
+    progress: report?.completionPercentage ?? null,
     events: auditLogs.map((log) => ({
       action: log.action,
       timestamp: log.createdAt,

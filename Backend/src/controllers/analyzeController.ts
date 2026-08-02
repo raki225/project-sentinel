@@ -21,6 +21,10 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : fallback;
 }
 
+function toBoolean(value: unknown): boolean {
+  return value === true;
+}
+
 export const analyzeDocument = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
 
@@ -60,9 +64,6 @@ export const analyzeDocument = asyncHandler(async (req: AuthenticatedRequest, re
     const ai = await analyzeDocumentText(extraction.text);
     logger.info("AI analysis finished", { documentId: doc.id, durationMs: Date.now() - aiStart });
 
-    const financial =
-      typeof ai.financial === "object" && ai.financial !== null ? (ai.financial as Record<string, unknown>) : {};
-
     const district = String(ai.district ?? "");
     const department = String(ai.department ?? "");
     const geoStart = Date.now();
@@ -76,17 +77,39 @@ export const analyzeDocument = asyncHandler(async (req: AuthenticatedRequest, re
         projectName: String(ai.projectName ?? ""),
         department,
         district,
-        budget: String(ai.budget ?? ""),
         contractor: String(ai.contractor ?? ""),
-        timeline: String(ai.timeline ?? ""),
-        progress: String(ai.progress ?? ""),
-        financial,
-        risks: toStringArray(ai.risks),
-        missingInformation: toStringArray(ai.missingInformation),
-        confidence: toNumber(ai.confidence),
+
+        allocatedBudget: String(ai.allocatedBudget ?? ""),
+        spentAmount: String(ai.spentAmount ?? ""),
+        remainingBudget: String(ai.remainingBudget ?? ""),
+
+        projectTimeline: String(ai.projectTimeline ?? ""),
+        completionPercentage: String(ai.completionPercentage ?? ""),
+
+        transparencyScore: toNumber(ai.transparencyScore),
         riskScore: toNumber(ai.riskScore),
+
+        budgetHealth: toNumber(ai.budgetHealth),
+        timelineHealth: toNumber(ai.timelineHealth),
+        documentationHealth: toNumber(ai.documentationHealth),
+        executionHealth: toNumber(ai.executionHealth),
+
+        riskLevel: String(ai.riskLevel ?? ""),
+
+        invoiceMismatch: toBoolean(ai.invoiceMismatch),
+        duplicateInvoice: toBoolean(ai.duplicateInvoice),
+        budgetOverrun: toBoolean(ai.budgetOverrun),
+        timelineDelay: toBoolean(ai.timelineDelay),
+
+        missingEvidence: toStringArray(ai.missingEvidence),
+        anomalies: toStringArray(ai.anomalies),
+        recommendations: toStringArray(ai.recommendations),
+        paymentRecommendation: String(ai.paymentRecommendation ?? ""),
+
+        confidence: toNumber(ai.confidence),
         executiveSummary: String(ai.executiveSummary ?? ""),
-        aiRecommendation: String(ai.aiRecommendation ?? ""),
+        evidence: toStringArray(ai.evidence),
+
         rawAiResponse: typeof ai.rawAiResponse === "string" ? ai.rawAiResponse : JSON.stringify(ai),
         location: location ?? undefined,
       },

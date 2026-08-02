@@ -31,20 +31,42 @@ export const getReport = asyncHandler(async (req: AuthenticatedRequest, res: Res
     fileName: doc.originalName,
     status: doc.status,
     report: {
-      executiveSummary: report.executiveSummary,
-      riskScore: report.riskScore,
-      confidence: report.confidence,
-      timeline: report.timeline,
-      financial: report.financial,
-      aiRecommendation: report.aiRecommendation,
       projectName: report.projectName,
       department: report.department,
       district: report.district,
-      budget: report.budget,
       contractor: report.contractor,
-      progress: report.progress,
-      risks: report.risks,
-      missingInformation: report.missingInformation,
+
+      allocatedBudget: report.allocatedBudget,
+      spentAmount: report.spentAmount,
+      remainingBudget: report.remainingBudget,
+
+      projectTimeline: report.projectTimeline,
+      completionPercentage: report.completionPercentage,
+
+      transparencyScore: report.transparencyScore,
+      riskScore: report.riskScore,
+
+      budgetHealth: report.budgetHealth,
+      timelineHealth: report.timelineHealth,
+      documentationHealth: report.documentationHealth,
+      executionHealth: report.executionHealth,
+
+      riskLevel: report.riskLevel,
+
+      invoiceMismatch: report.invoiceMismatch,
+      duplicateInvoice: report.duplicateInvoice,
+      budgetOverrun: report.budgetOverrun,
+      timelineDelay: report.timelineDelay,
+
+      missingEvidence: report.missingEvidence,
+      anomalies: report.anomalies,
+      recommendations: report.recommendations,
+      paymentRecommendation: report.paymentRecommendation,
+
+      confidence: report.confidence,
+      executiveSummary: report.executiveSummary,
+      evidence: report.evidence,
+
       location: report.location,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,

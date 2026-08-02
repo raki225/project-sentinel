@@ -20,26 +20,36 @@ export interface GeoLocation {
   formattedAddress: string;
 }
 
-export interface FinancialFindings {
-  allocatedBudget?: string;
-  spentToDate?: string;
-  variance?: string;
-  currency?: string;
-  [key: string]: unknown;
-}
+export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 
 export interface ExtractedProjectData {
   projectName: string;
   department: string;
   district: string;
-  budget: string;
   contractor: string;
-  timeline: string;
-  progress: string;
-  financial: FinancialFindings;
-  risks: string[];
-  missingInformation: string[];
+  allocatedBudget: string;
+  spentAmount: string;
+  remainingBudget: string;
+  projectTimeline: string;
+  completionPercentage: string;
+  transparencyScore: number;
+  riskScore: number;
+  budgetHealth: number;
+  timelineHealth: number;
+  documentationHealth: number;
+  executionHealth: number;
+  riskLevel: string;
+  invoiceMismatch: boolean;
+  duplicateInvoice: boolean;
+  budgetOverrun: boolean;
+  timelineDelay: boolean;
+  missingEvidence: string[];
+  anomalies: string[];
+  recommendations: string[];
+  paymentRecommendation: string;
   confidence: number;
+  executiveSummary: string;
+  evidence: string[];
 }
 
 export interface ApiSuccess<T> {
