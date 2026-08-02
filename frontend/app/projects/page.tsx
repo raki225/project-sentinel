@@ -13,17 +13,13 @@ import {
   ChevronDown,
   X,
   Compass,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
 import { Reveal, Kicker, AnimatedNumber } from "@/components/sentinel/primitives"
 import { ProjectCard } from "@/components/sentinel/project-card"
-import {
-  PROJECTS,
-  PHASE_META,
-  formatCrore,
-  transparencyTier,
-  type ProjectPhase,
-  type TransparencyTier,
-} from "@/lib/sentinel-data"
+import { PHASE_META, formatCrore, transparencyTier, type ProjectPhase, type TransparencyTier } from "@/lib/sentinel-data"
+import { useProjectRegistry } from "@/hooks/useProjectRegistry"
 import { cn } from "@/lib/utils"
 
 const CATEGORY_FILTERS = [
@@ -49,9 +45,10 @@ const SORTS = [
   { key: "completion", label: "Completion %" },
 ] as const
 
-const BUDGET_MAX = Math.max(...PROJECTS.map((p) => p.sanctioned))
-
 export default function ProjectsPage() {
+  const { projects: PROJECTS, isDemo, isLoading, isError, errorMessage, refetch } = useProjectRegistry()
+  const BUDGET_MAX = useMemo(() => (PROJECTS.length ? Math.max(...PROJECTS.map((p) => p.sanctioned)) : 0), [PROJECTS])
+
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<string | null>(null)
   const [phase, setPhase] = useState<ProjectPhase | null>(null)
@@ -96,7 +93,7 @@ export default function ProjectsPage() {
         break
     }
     return sorted
-  }, [query, category, phase, tier, minBudget, minCompletion, sort])
+  }, [PROJECTS, query, category, phase, tier, minBudget, minCompletion, sort])
 
   const activeFilters = [category, phase, tier].filter(Boolean).length + (minBudget > 0 ? 1 : 0) + (minCompletion > 0 ? 1 : 0)
 
@@ -311,62 +308,92 @@ export default function ProjectsPage() {
         </div>
       </Reveal>
 
-      {/* Results header */}
-      <div className="mt-8 flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {PROJECTS.length}{" "}
-          projects
+      {isLoading ? (
+        <div className="mt-8 grid place-items-center rounded-2xl border border-dashed border-border bg-card/40 py-20 text-center">
+          <div className="grid size-16 place-items-center rounded-2xl bg-muted">
+            <Compass className="size-7 animate-pulse text-muted-foreground" />
+          </div>
+          <h3 className="mt-5 font-display text-xl font-bold">Loading projects…</h3>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Fetching the latest project registry from Sentinel.
+          </p>
         </div>
-        {activeFilters > 0 && (
+      ) : isError ? (
+        <div className="mt-8 grid place-items-center rounded-2xl border border-dashed border-border bg-card/40 py-20 text-center">
+          <div className="grid size-16 place-items-center rounded-2xl bg-flagged/10">
+            <AlertTriangle className="size-7 text-flagged" />
+          </div>
+          <h3 className="mt-5 font-display text-xl font-bold">Unable to load project list</h3>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            {errorMessage ?? "Something went wrong while reaching the Sentinel API."}
+          </p>
           <button
-            onClick={resetAll}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:border-primary/40"
+            onClick={refetch}
+            className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
-            <X className="size-3.5" /> Clear {activeFilters} filter{activeFilters > 1 ? "s" : ""}
+            <RefreshCw className="size-4" /> Retry
           </button>
-        )}
-      </div>
-
-      {/* Grid / list / empty */}
-      <div className="mt-4">
-        {filtered.length === 0 ? (
-          <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card/40 py-20 text-center">
-            <div className="grid size-16 place-items-center rounded-2xl bg-muted">
-              <Compass className="size-7 text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {isDemo && (
+            <div className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+              Demo mode — no government dataset synced yet
             </div>
-            <h3 className="mt-5 font-display text-xl font-bold">No Infrastructure Projects Yet</h3>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              Government infrastructure projects will appear here for AI-powered transparency monitoring.
-            </p>
-            <div className="mt-6 flex gap-3">
+          )}
+
+          {/* Results header */}
+          <div className="mt-8 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {PROJECTS.length}{" "}
+              projects
+            </div>
+            {activeFilters > 0 && (
               <button
                 onClick={resetAll}
-                className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary/40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:border-primary/40"
               >
-                Reset filters
+                <X className="size-3.5" /> Clear {activeFilters} filter{activeFilters > 1 ? "s" : ""}
               </button>
-              <Link
-                href="/workspace"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-              >
-                Create First Project
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={cn(
-              view === "grid"
-                ? "grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
-                : "flex flex-col gap-4",
             )}
-          >
-            {filtered.map((p, i) => (
-              <ProjectCard key={p.id} project={p} view={view} delay={i * 60} />
-            ))}
           </div>
-        )}
-      </div>
+
+          {/* Grid / list / empty */}
+          <div className="mt-4">
+            {filtered.length === 0 ? (
+              <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card/40 py-20 text-center">
+                <div className="grid size-16 place-items-center rounded-2xl bg-muted">
+                  <Compass className="size-7 text-muted-foreground" />
+                </div>
+                <h3 className="mt-5 font-display text-xl font-bold">No Infrastructure Projects Yet</h3>
+                <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                  Government infrastructure projects will appear here for AI-powered transparency monitoring.
+                </p>
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={resetAll}
+                    className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary/40"
+                  >
+                    Reset filters
+                  </button>
+                  <Link
+                    href="/workspace"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                  >
+                    Create First Project
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className={cn(view === "grid" ? "grid gap-5 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4")}>
+                {filtered.map((p, i) => (
+                  <ProjectCard key={p.id} project={p} view={view} delay={i * 60} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

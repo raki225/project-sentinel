@@ -1,11 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { ShieldCheck, TriangleAlert as AlertTriangle, Activity as ActivityIcon, RefreshCw } from "lucide-react"
-import { getLiveActivity, type ActivityItem, type ActivitySeverity } from "@/lib/api"
+import { useLiveActivity } from "@/hooks/useLiveActivity"
+import type { ActivitySeverity } from "@/lib/api"
 import { cn } from "@/lib/utils"
-
-const POLL_INTERVAL_MS = 10_000
 
 const SEVERITY_META: Record<ActivitySeverity, { icon: typeof ActivityIcon; tone: string }> = {
   high: { icon: AlertTriangle, tone: "text-flagged bg-flagged/10" },
@@ -24,31 +22,18 @@ function timeAgo(iso: string): string {
 }
 
 export default function LiveActivityFeed() {
-  const [items, setItems] = useState<ActivityItem[]>([])
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
-
-  async function load() {
-    try {
-      const { activity } = await getLiveActivity(8)
-      setItems(activity)
-      setStatus("ready")
-    } catch {
-      setStatus("error")
-    }
-  }
-
-  useEffect(() => {
-    load()
-    const id = setInterval(load, POLL_INTERVAL_MS)
-    return () => clearInterval(id)
-  }, [])
+  const query = useLiveActivity(8)
+  const status: "loading" | "ready" | "error" = query.isPending ? "loading" : query.isError ? "error" : "ready"
+  const items = query.data?.activity ?? []
 
   if (status === "error") {
     return (
       <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card/70 p-6 text-center">
-        <p className="text-xs text-muted-foreground">Could not reach the Sentinel API.</p>
+        <p className="text-xs text-muted-foreground">
+          {query.error?.message ?? "Could not reach the Sentinel API."}
+        </p>
         <button
-          onClick={load}
+          onClick={() => query.refetch()}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary"
         >
           <RefreshCw className="size-3.5" />

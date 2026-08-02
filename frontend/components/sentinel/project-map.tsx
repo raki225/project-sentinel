@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { AlertTriangle, MapPin, RefreshCw, ShieldAlert, Sparkles } from "lucide-react"
-import { getProjectsMap, API_BASE_URL, ApiError, type ProjectMapPoint } from "@/lib/api"
+import { API_BASE_URL } from "@/lib/api"
+import { useProjectsMap } from "@/hooks/useProjectsMap"
 import { DEMO_PROJECT_MAP_POINTS } from "@/lib/demo-map-data"
 import { toneFromRisk, markerIcon } from "@/lib/map-marker"
 import { cn } from "@/lib/utils"
@@ -12,27 +12,10 @@ import { cn } from "@/lib/utils"
 const INDIA_CENTER: [number, number] = [22.9734, 78.6569]
 
 export default function ProjectMap({ height = 420, showStats = false }: { height?: number; showStats?: boolean }) {
-  const [points, setPoints] = useState<ProjectMapPoint[]>([])
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
-  const [errorMessage, setErrorMessage] = useState("")
+  const query = useProjectsMap()
 
-  async function load() {
-    setStatus("loading")
-    try {
-      const { points } = await getProjectsMap()
-      setPoints(points)
-      setStatus("ready")
-    } catch (err) {
-      setErrorMessage(
-        err instanceof ApiError ? err.message : "Could not reach the Sentinel API. Is the backend running?",
-      )
-      setStatus("error")
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
+  const status: "loading" | "ready" | "error" = query.isPending ? "loading" : query.isError ? "error" : "ready"
+  const points = query.data?.points ?? []
 
   // Never show a blank map: fall back to sample projects until the backend has real geocoded reports.
   const isDemo = status !== "error" && points.length === 0
@@ -53,9 +36,11 @@ export default function ProjectMap({ height = 420, showStats = false }: { height
         {status === "error" ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 bg-card p-6 text-center">
             <AlertTriangle className="size-5 text-flagged" />
-            <p className="max-w-xs text-xs text-muted-foreground">{errorMessage}</p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              {query.error?.message ?? "Could not reach the Sentinel API. Is the backend running?"}
+            </p>
             <button
-              onClick={load}
+              onClick={() => query.refetch()}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary"
             >
               <RefreshCw className="size-3.5" />

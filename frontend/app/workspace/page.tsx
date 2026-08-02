@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import {
   ArrowLeft,
   MapPin,
@@ -19,6 +20,8 @@ import {
   Gauge,
   Activity,
   ShieldCheck,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
 import { StatusPill, ProgressRing, AnimatedNumber } from "@/components/sentinel/primitives"
 import {
@@ -29,7 +32,8 @@ import {
 } from "@/components/sentinel/workspace-panels"
 import { DocumentModulesPanel } from "@/components/sentinel/document-modules"
 import { RupeeJourneyPanel } from "@/components/sentinel/rupee-journey"
-import { PROJECTS, PHASE_META, formatCrore, type SentinelProject } from "@/lib/sentinel-data"
+import { PHASE_META, formatCrore, type SentinelProject } from "@/lib/sentinel-data"
+import { useProjectRegistry } from "@/hooks/useProjectRegistry"
 import { cn } from "@/lib/utils"
 
 const TABS = [
@@ -50,9 +54,11 @@ function toneForStatus(s: SentinelProject["status"]) {
 /* ---------- Project switcher ---------- */
 function ProjectSwitcher({
   project,
+  projects,
   onSelect,
 }: {
   project: SentinelProject
+  projects: SentinelProject[]
   onSelect: (p: SentinelProject) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -82,7 +88,7 @@ function ProjectSwitcher({
             <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Switch project
             </div>
-            {PROJECTS.map((p) => {
+            {projects.map((p) => {
               const tone = toneForStatus(p.status)
               const active = p.id === project.id
               return (
@@ -116,9 +122,64 @@ function ProjectSwitcher({
   )
 }
 
-export default function WorkspacePage() {
-  const [project, setProject] = useState<SentinelProject>(PROJECTS[0])
+function WorkspacePageContent() {
+  const { projects, isLoading, isError, errorMessage, refetch } = useProjectRegistry()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>("Overview")
+
+  const requestedId = searchParams.get("project")
+  const project = projects.find((p) => p.id === requestedId) ?? projects[0]
+
+  // If there's no `?project=` in the URL yet, or it doesn't match a known
+  // project, adopt the first project into the URL so a refresh keeps it.
+  // Must run as an effect, not during render — updating router state while
+  // this component is rendering is exactly what React warns against.
+  useEffect(() => {
+    if (project && requestedId !== project.id) {
+      router.replace(`${pathname}?project=${project.id}`, { scroll: false })
+    }
+  }, [project, requestedId, pathname, router])
+
+  function selectProject(p: SentinelProject) {
+    router.push(`${pathname}?project=${p.id}`, { scroll: false })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto grid max-w-[1500px] place-items-center px-4 py-24 text-center sm:px-6">
+        <RefreshCw className="size-6 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading workspace…</p>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="mx-auto grid max-w-[1500px] place-items-center px-4 py-24 text-center sm:px-6">
+        <AlertTriangle className="size-6 text-flagged" />
+        <h2 className="mt-4 font-display text-lg font-bold">Unable to load the project workspace</h2>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          {errorMessage ?? "Something went wrong while reaching the Sentinel API."}
+        </p>
+        <button
+          onClick={refetch}
+          className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          <RefreshCw className="size-4" /> Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!project) {
+    return (
+      <div className="mx-auto grid max-w-[1500px] place-items-center px-4 py-24 text-center sm:px-6">
+        <p className="text-sm text-muted-foreground">No projects available yet.</p>
+      </div>
+    )
+  }
 
   const tone = toneForStatus(project.status)
   const phase = PHASE_META[project.phase]
@@ -153,7 +214,7 @@ export default function WorkspacePage() {
             >
               <ArrowLeft className="size-4" /> Back to projects
             </Link>
-            <ProjectSwitcher project={project} onSelect={setProject} />
+            <ProjectSwitcher project={project} projects={projects} onSelect={selectProject} />
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -258,5 +319,19 @@ export default function WorkspacePage() {
         </div>
       </section>
     </div>
+  )
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto grid max-w-[1500px] place-items-center px-4 py-24 text-center sm:px-6">
+          <RefreshCw className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <WorkspacePageContent />
+    </Suspense>
   )
 }

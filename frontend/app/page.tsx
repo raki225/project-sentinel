@@ -31,7 +31,8 @@ import {
   SparkTimeline,
 } from "@/components/sentinel/primitives"
 import LiveActivityFeed from "@/components/sentinel/live-activity-feed"
-import { PROJECTS, STATES, CATEGORIES, FUND_TIMELINE, formatCrore, type ProjectStatus } from "@/lib/sentinel-data"
+import { STATES, CATEGORIES, FUND_TIMELINE, formatCrore, type ProjectStatus } from "@/lib/sentinel-data"
+import { useProjectRegistry } from "@/hooks/useProjectRegistry"
 import { cn } from "@/lib/utils"
 
 const ProjectMap = dynamic(() => import("@/components/sentinel/project-map"), {
@@ -69,6 +70,8 @@ function LiveClock() {
 }
 
 export default function OverviewPage() {
+  const { projects: PROJECTS, isLoading: projectsLoading } = useProjectRegistry()
+
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<ProjectStatus | "all">("all")
   const [category, setCategory] = useState<string | null>(null)
@@ -81,7 +84,7 @@ export default function OverviewPage() {
         return false
       return true
     })
-  }, [query, status, category])
+  }, [PROJECTS, query, status, category])
 
   const flagged = PROJECTS.filter((p) => p.status === "flagged")
   const pending = PROJECTS.filter((p) => p.status === "pending")
@@ -465,7 +468,12 @@ export default function OverviewPage() {
             projects
           </div>
 
-          {filtered.length === 0 ? (
+          {projectsLoading ? (
+            <div className="mt-4 grid place-items-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
+              <Search className="size-6 animate-pulse text-muted-foreground" />
+              <p className="mt-3 font-display font-bold">Loading projects…</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="mt-4 grid place-items-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
               <Search className="size-6 text-muted-foreground" />
               <p className="mt-3 font-display font-bold">No projects match your filters</p>
@@ -478,7 +486,7 @@ export default function OverviewPage() {
                 return (
                   <Reveal key={p.id} delay={i * 50}>
                     <Link
-                      href="/workspace"
+                      href={`/workspace?project=${p.id}`}
                       className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
                     >
                       <div className="flex items-start justify-between">
@@ -538,7 +546,7 @@ export default function OverviewPage() {
             {pending.slice(0, 4).map((p) => (
               <Link
                 key={p.id}
-                href="/workspace"
+                href={`/workspace?project=${p.id}`}
                 className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-pending/50"
               >
                 <ProgressRing value={p.integrity} size={52} stroke={5} tone="pending" />
@@ -571,7 +579,7 @@ export default function OverviewPage() {
             {recentlyVerified.map((p) => (
               <Link
                 key={p.id}
-                href="/workspace"
+                href={`/workspace?project=${p.id}`}
                 className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-verified/50"
               >
                 <ProgressRing value={p.integrity} size={52} stroke={5} tone="verified" />
@@ -683,7 +691,7 @@ export default function OverviewPage() {
           {flagged.map((p, i) => (
             <Reveal key={p.id} delay={i * 100}>
               <Link
-                href="/workspace"
+                href={`/workspace?project=${p.id}`}
                 className="group flex items-center gap-5 rounded-2xl border border-flagged/30 bg-flagged/5 p-5 transition-colors hover:border-flagged/60"
               >
                 <ProgressRing value={p.integrity} size={64} stroke={6} tone="flagged" />

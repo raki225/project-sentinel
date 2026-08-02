@@ -337,7 +337,7 @@ export function ProjectCard({
         {/* Actions */}
         <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
           <Link
-            href="/workspace"
+            href={`/workspace?project=${p.id}`}
             onClick={ripple.add}
             className="relative inline-flex flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >

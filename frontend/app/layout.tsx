@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Manrope } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
+import { QueryProvider } from '@/providers/query-provider'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import './globals.css'
@@ -33,9 +34,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${manrope.variable} bg-background`}>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <SiteHeader />
-          <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-          <SiteFooter />
+          <QueryProvider>
+            <SiteHeader />
+            <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+            <SiteFooter />
+          </QueryProvider>
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </ThemeProvider>
       </body>

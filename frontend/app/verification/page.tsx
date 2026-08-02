@@ -4,79 +4,122 @@ import { useEffect, useRef, useState } from "react"
 import {
   ScanSearch,
   UploadCloud,
-  Receipt,
-  ImageIcon,
-  Satellite,
   FileText,
+  FileWarning,
   Play,
   RotateCcw,
   CheckCircle2,
   AlertTriangle,
   Sparkles,
   Cpu,
+  X,
 } from "lucide-react"
 import { Kicker, StatusPill } from "@/components/sentinel/primitives"
+import { useRunVerification } from "@/hooks/useRunVerification"
 import { cn } from "@/lib/utils"
 
-const INPUTS = [
-  { icon: Receipt, label: "Invoice INV-2024-0412", meta: "PDF · 2.1 MB", ok: true },
-  { icon: ImageIcon, label: "Geo-tagged site photos", meta: "48 images", ok: true },
-  { icon: Satellite, label: "Satellite delta scan", meta: "Apr 2024", ok: true },
-  { icon: FileText, label: "Milestone scope sheet", meta: "Sanction ref", ok: true },
-]
-
+// Cosmetic step labels shown while the real upload+analyze request is in
+// flight — the backend does this as one request/response (no incremental
+// progress events), so this is a progress *indicator*, not a claim about
+// what's literally happening server-side at each tick.
 const STEPS = [
-  { label: "Ingesting evidence bundle", detail: "4 documents · 52 assets" },
-  { label: "Cross-checking invoice against sanctioned scope", detail: "line-item reconciliation" },
-  { label: "Matching field photos to project geo-polygon", detail: "GPS + EXIF validation" },
-  { label: "Running satellite change detection", detail: "structural delta model" },
-  { label: "Scanning for duplicate & inflated claims", detail: "anomaly graph" },
-  { label: "Compiling integrity verdict", detail: "confidence aggregation" },
+  { label: "Uploading document", detail: "Sentinel storage" },
+  { label: "Extracting text", detail: "PDF / DOCX / OCR" },
+  { label: "Running AI audit", detail: "budget, timeline, documentation, execution" },
+  { label: "Cross-checking for anomalies", detail: "invoice, duplicate & compliance scan" },
+  { label: "Geocoding project location", detail: "best-effort" },
+  { label: "Compiling audit verdict", detail: "confidence aggregation" },
 ]
 
-const CHECKS = [
-  { label: "Invoice within sanctioned scope", score: 98, tone: "verified" },
-  { label: "Field evidence geo-match", score: 99, tone: "verified" },
-  { label: "Satellite structural progress", score: 96, tone: "verified" },
-  { label: "Duplicate-claim scan", score: 92, tone: "verified" },
-  { label: "Third-party sign-off present", score: 44, tone: "pending" },
-]
+type HealthTone = "verified" | "pending" | "flagged"
 
-const ANOMALIES = [
-  { severity: "low", text: "Line item 7 priced 6% above regional benchmark — within tolerance." },
-  { severity: "info", text: "Third-party quality report not yet attached to milestone 5." },
-]
+function toneForScore(score: number): HealthTone {
+  if (score >= 75) return "verified"
+  if (score >= 45) return "pending"
+  return "flagged"
+}
+
+function toneClass(tone: HealthTone, kind: "text" | "bg"): string {
+  const map: Record<HealthTone, string> = { verified: "verified", pending: "pending", flagged: "flagged" }
+  return `${kind}-${map[tone]}`
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
 
 export default function VerificationPage() {
-  const [phase, setPhase] = useState<"idle" | "running" | "done">("idle")
+  const mutation = useRunVerification()
+  const [file, setFile] = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [step, setStep] = useState(0)
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const run = () => {
-    setPhase("running")
-    setStep(0)
-    let s = 0
-    timer.current = setInterval(() => {
-      s++
-      if (s >= STEPS.length) {
-        if (timer.current) clearInterval(timer.current)
-        setStep(STEPS.length)
-        setTimeout(() => setPhase("done"), 500)
-      } else {
-        setStep(s)
-      }
-    }, 780)
+  const phase: "idle" | "running" | "done" | "error" = mutation.isPending
+    ? "running"
+    : mutation.isSuccess
+      ? "done"
+      : mutation.isError
+        ? "error"
+        : "idle"
+
+  // Cosmetic step animation only runs while the real request is in flight —
+  // it never advances phase itself; that only happens when the mutation
+  // actually resolves.
+  useEffect(() => {
+    if (mutation.isPending) {
+      setStep(0)
+      stepTimer.current = setInterval(() => {
+        setStep((s) => Math.min(STEPS.length - 1, s + 1))
+      }, 900)
+    } else if (stepTimer.current) {
+      clearInterval(stepTimer.current)
+    }
+    return () => {
+      if (stepTimer.current) clearInterval(stepTimer.current)
+    }
+  }, [mutation.isPending])
+
+  function run() {
+    if (!file) return
+    mutation.mutate(file)
   }
 
-  const reset = () => {
-    if (timer.current) clearInterval(timer.current)
-    setPhase("idle")
+  function reset() {
+    mutation.reset()
+    setFile(null)
     setStep(0)
   }
 
-  useEffect(() => () => {
-    if (timer.current) clearInterval(timer.current)
-  }, [])
+  function onFileSelected(f: File | undefined) {
+    if (!f) return
+    setFile(f)
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    if (phase === "running") return
+    onFileSelected(e.dataTransfer.files?.[0])
+  }
+
+  const report = mutation.data
+  const riskLevel = report?.riskLevel ?? ""
+  const verdictTone: HealthTone = riskLevel === "Low" ? "verified" : riskLevel === "Medium" ? "pending" : "flagged"
+  const verdictLabel =
+    riskLevel === "Low" ? "Verification passed" : riskLevel === "Medium" ? "Requires review" : "Verification flagged"
+  const VerdictIcon = verdictTone === "verified" ? CheckCircle2 : AlertTriangle
+
+  const healthChecks = report
+    ? [
+        { label: "Budget health", score: report.budgetHealth },
+        { label: "Timeline health", score: report.timelineHealth },
+        { label: "Documentation health", score: report.documentationHealth },
+        { label: "Execution health", score: report.executionHealth },
+      ].map((c) => ({ ...c, tone: toneForScore(c.score) }))
+    : []
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6">
@@ -85,46 +128,85 @@ export default function VerificationPage() {
           <Kicker>AI Verification Engine</Kicker>
           <h1 className="mt-5 font-display text-4xl font-bold tracking-tight text-balance">Evidence, verified by machine</h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Sentinel reconciles invoices, field photos and satellite imagery against the sanctioned scope — surfacing
-            anomalies before a single rupee is released.
+            Upload a real project document — Sentinel extracts it, runs a full AI audit, and surfaces anomalies
+            before a single rupee is released.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-          <Cpu className="size-4" /> Sentinel-Vision v4
+          <Cpu className="size-4" /> Sentinel AI Audit
         </div>
       </div>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        {/* Left: inputs + dropzone */}
+        {/* Left: evidence + dropzone */}
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="font-display text-sm font-bold uppercase tracking-wide">Evidence bundle</h2>
-            <div className="mt-4 space-y-2.5">
-              {INPUTS.map((f) => (
-                <div key={f.label} className="flex items-center gap-3 rounded-xl border border-border bg-background/50 p-3">
-                  <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-                    <f.icon className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{f.label}</p>
-                    <p className="text-xs text-muted-foreground">{f.meta}</p>
-                  </div>
-                  <CheckCircle2 className="size-4 text-verified" />
-                </div>
-              ))}
-            </div>
+            <h2 className="font-display text-sm font-bold uppercase tracking-wide">Evidence document</h2>
 
-            <div className="mt-4 grid place-items-center rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center transition-colors hover:border-primary/40">
+            {file ? (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <FileText className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                </div>
+                {phase !== "running" && (
+                  <button
+                    onClick={() => setFile(null)}
+                    aria-label="Remove file"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Tender notices, invoices, progress reports, completion certificates — anything Sentinel&apos;s audit
+                pipeline can extract and score.
+              </p>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.png,.jpg,.jpeg"
+              className="sr-only"
+              onChange={(e) => onFileSelected(e.target.files?.[0])}
+            />
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                if (phase !== "running") setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              onClick={() => phase !== "running" && fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && phase !== "running") {
+                  e.preventDefault()
+                  fileInputRef.current?.click()
+                }
+              }}
+              className={cn(
+                "mt-4 grid cursor-pointer place-items-center rounded-xl border border-dashed px-4 py-8 text-center transition-colors",
+                dragging ? "border-primary bg-primary/10" : "border-border bg-background/40 hover:border-primary/40",
+              )}
+            >
               <UploadCloud className="size-6 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">Drop additional evidence</p>
-              <p className="text-xs text-muted-foreground">PDF, images, GIS or CSV up to 200 MB</p>
+              <p className="mt-2 text-sm font-medium">{file ? "Drop to replace" : "Drop a document to verify"}</p>
+              <p className="text-xs text-muted-foreground">PDF, DOCX, PNG or JPG, up to 25 MB</p>
             </div>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={run}
-              disabled={phase === "running"}
+              disabled={!file || phase === "running"}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
             >
               {phase === "running" ? (
@@ -164,7 +246,9 @@ export default function VerificationPage() {
                   </div>
                   <h3 className="mt-5 font-display text-lg font-bold">Ready to verify</h3>
                   <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-                    Run the engine to reconcile this evidence bundle against the sanctioned project scope.
+                    {file
+                      ? `Run the engine to audit "${file.name}" against Sentinel's extraction and risk-scoring pipeline.`
+                      : "Drop a document on the left to run a real Sentinel audit against it."}
                   </p>
                 </div>
               </div>
@@ -173,7 +257,7 @@ export default function VerificationPage() {
             {phase === "running" && (
               <div className="min-h-[420px]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Sparkles className="size-4" /> Sentinel is analysing the bundle
+                  <Sparkles className="size-4" /> Sentinel is analysing the document
                 </div>
                 <ol className="mt-6 space-y-3">
                   {STEPS.map((s, i) => {
@@ -207,36 +291,56 @@ export default function VerificationPage() {
               </div>
             )}
 
-            {phase === "done" && (
+            {phase === "error" && (
+              <div className="grid min-h-[420px] place-items-center text-center">
+                <div>
+                  <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-flagged/10 text-flagged">
+                    <AlertTriangle className="size-7" />
+                  </div>
+                  <h3 className="mt-5 font-display text-lg font-bold">Verification failed</h3>
+                  <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+                    {mutation.error?.message ?? "Something went wrong while reaching the Sentinel API."}
+                  </p>
+                  <button
+                    onClick={run}
+                    className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                  >
+                    <RotateCcw className="size-4" /> Try again
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {phase === "done" && report && (
               <div className="min-h-[420px] animate-rise">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="grid size-12 place-items-center rounded-xl bg-verified/15 text-verified">
-                      <CheckCircle2 className="size-6" />
+                    <span className={cn("grid size-12 place-items-center rounded-xl", `bg-${verdictTone}/15`, toneClass(verdictTone, "text"))}>
+                      <VerdictIcon className="size-6" />
                     </span>
                     <div>
-                      <div className="font-display text-lg font-bold">Verification passed</div>
-                      <div className="text-sm text-muted-foreground">Milestone 5 evidence bundle</div>
+                      <div className="font-display text-lg font-bold">{verdictLabel}</div>
+                      <div className="text-sm text-muted-foreground">{report.projectName || file?.name}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-display text-3xl font-bold text-verified">96%</div>
+                    <div className={cn("font-display text-3xl font-bold", toneClass(verdictTone, "text"))}>
+                      {report.confidence}%
+                    </div>
                     <div className="text-xs text-muted-foreground">confidence</div>
                   </div>
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  {CHECKS.map((c) => (
+                  {healthChecks.map((c) => (
                     <div key={c.label}>
                       <div className="mb-1 flex items-center justify-between text-sm">
                         <span>{c.label}</span>
-                        <span className={cn("font-semibold", c.tone === "pending" ? "text-pending" : "text-verified")}>
-                          {c.score}%
-                        </span>
+                        <span className={cn("font-semibold", toneClass(c.tone, "text"))}>{c.score}%</span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                         <div
-                          className={cn("h-full rounded-full transition-all duration-700", c.tone === "pending" ? "bg-pending" : "bg-verified")}
+                          className={cn("h-full rounded-full transition-all duration-700", toneClass(c.tone, "bg"))}
                           style={{ width: `${c.score}%` }}
                         />
                       </div>
@@ -244,21 +348,39 @@ export default function VerificationPage() {
                   ))}
                 </div>
 
-                <div className="mt-6">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Anomalies detected</h4>
-                  <div className="mt-3 space-y-2">
-                    {ANOMALIES.map((a, i) => (
-                      <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-background/50 p-3">
-                        <AlertTriangle className={cn("mt-0.5 size-4 shrink-0", a.severity === "low" ? "text-pending" : "text-muted-foreground")} />
-                        <p className="text-sm text-muted-foreground">{a.text}</p>
-                      </div>
-                    ))}
+                {report.anomalies.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Anomalies detected</h4>
+                    <div className="mt-3 space-y-2">
+                      {report.anomalies.map((a, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-background/50 p-3">
+                          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-pending" />
+                          <p className="text-sm text-muted-foreground">{a}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {report.missingEvidence.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Missing evidence</h4>
+                    <div className="mt-3 space-y-2">
+                      {report.missingEvidence.map((m, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-background/50 p-3">
+                          <FileWarning className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">{m}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-6 flex flex-wrap items-center gap-2">
-                  <StatusPill status="verified">Recommended: release next tranche</StatusPill>
-                  <StatusPill status="pending" dot={false}>Requires human sign-off</StatusPill>
+                  <StatusPill status={verdictTone}>{report.paymentRecommendation || "No payment recommendation yet"}</StatusPill>
+                  <StatusPill status="pending" dot={false}>
+                    Requires human sign-off
+                  </StatusPill>
                 </div>
               </div>
             )}
