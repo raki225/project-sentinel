@@ -1,0 +1,151 @@
+{
+  "info": {
+    "name": "Project Sentinel API",
+    "description": "AI-powered Infrastructure Oversight & Decision Intelligence Platform - Backend API. Auth is currently optional: /api/upload, /api/analyze/:id and /api/report/:id do not require a Bearer token. Auth/Login requests are kept here in case you re-enable enforcement later.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "token", "value": "" },
+    { "key": "documentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "body": "{\n  \"success\": true,\n  \"message\": \"Project Sentinel API is running\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Auth - Register",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const json = pm.response.json();",
+              "  pm.collectionVariables.set('token', json.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Oversight Analyst\",\n  \"email\": \"analyst@sentinel.dev\",\n  \"password\": \"ChangeMe123!\",\n  \"role\": \"analyst\"\n}"
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "body": "{\n  \"success\": true,\n  \"token\": \"eyJhbGciOi...\",\n  \"user\": {\n    \"id\": \"66f1...\",\n    \"name\": \"Oversight Analyst\",\n    \"email\": \"analyst@sentinel.dev\",\n    \"role\": \"analyst\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  pm.collectionVariables.set('token', json.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"analyst@sentinel.dev\",\n  \"password\": \"ChangeMe123!\"\n}"
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "body": "{\n  \"success\": true,\n  \"token\": \"eyJhbGciOi...\",\n  \"user\": {\n    \"id\": \"66f1...\",\n    \"name\": \"Oversight Analyst\",\n    \"email\": \"analyst@sentinel.dev\",\n    \"role\": \"analyst\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Upload Document",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const json = pm.response.json();",
+              "  pm.collectionVariables.set('documentId', json.documentId);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/upload",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "../demo/sample-infrastructure-report.pdf"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "body": "{\n  \"success\": true,\n  \"documentId\": \"66f1abc...\",\n  \"fileName\": \"sample-infrastructure-report.pdf\",\n  \"type\": \"pdf\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Analyze Document",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/analyze/{{documentId}}"
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "body": "{\n  \"success\": true,\n  \"documentId\": \"66f1abc...\",\n  \"report\": {\n    \"projectName\": \"Rajapuram-Kondapally Highway Widening (Phase II)\",\n    \"department\": \"Public Works Department (PWD)\",\n    \"district\": \"Kondapally District\",\n    \"budget\": \"INR 84.5 Crore\",\n    \"contractor\": \"Sri Balaji Infra Constructions Pvt. Ltd.\",\n    \"timeline\": \"Start: 12 Jan 2023 | Revised Completion: 30 Jun 2025\",\n    \"progress\": \"68% complete\",\n    \"financial\": {\n      \"allocatedBudget\": \"INR 84.5 Crore\",\n      \"spentToDate\": \"INR 61.2 Crore\",\n      \"variance\": \"Cost utilization (72%) outpacing physical progress (68%)\",\n      \"currency\": \"INR\"\n    },\n    \"risks\": [\n      \"Land acquisition delays in the Kondapally bypass segment\",\n      \"Monsoon season expected to delay earthwork and drainage\",\n      \"Sub-standard aggregate flagged near Chainage 14+200\"\n    ],\n    \"missingInformation\": [],\n    \"confidence\": 92,\n    \"riskScore\": 61,\n    \"executiveSummary\": \"...\",\n    \"aiRecommendation\": \"...\",\n    \"location\": { \"lat\": 12.42, \"lng\": 75.24, \"formattedAddress\": \"...\" }\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Report",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/report/{{documentId}}"
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "body": "{\n  \"success\": true,\n  \"documentId\": \"66f1abc...\",\n  \"fileName\": \"sample-infrastructure-report.pdf\",\n  \"status\": \"analyzed\",\n  \"report\": {\n    \"executiveSummary\": \"...\",\n    \"riskScore\": 61,\n    \"confidence\": 92,\n    \"timeline\": \"...\",\n    \"financial\": { \"allocatedBudget\": \"INR 84.5 Crore\" },\n    \"aiRecommendation\": \"...\",\n    \"location\": { \"lat\": 12.42, \"lng\": 75.24, \"formattedAddress\": \"...\" }\n  }\n}"
+        }
+      ]
+    }
+  ]
+}

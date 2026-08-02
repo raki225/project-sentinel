@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+  <style>
+    .core { animation: pulse 3.2s ease-in-out infinite; transform-origin: 18px 18px; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.65; transform: scale(0.94); }
+      50% { opacity: 1; transform: scale(1.06); }
+    }
+  </style>
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3b6fe0" stop-opacity="1" />
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle cx="18" cy="18" r="17" fill="#0d1220" />
+  <circle cx="18" cy="18" r="14" fill="none" stroke="#3b6fe0" stroke-opacity="0.35" stroke-width="1.4" stroke-dasharray="2.5 3.5" />
+  <circle cx="18" cy="18" r="10" fill="url(#core)" class="core" />
+  <circle cx="18" cy="18" r="4" fill="#5b8def" />
+  <circle cx="18" cy="5" r="1.6" fill="#22c55e" />
+</svg>

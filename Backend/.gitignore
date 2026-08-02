@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+uploads/*
+!uploads/.gitkeep
+reports/*
+!reports/.gitkeep
+*.log
+npm-debug.log*
+.DS_Store
+.mongo-data/
+server.log

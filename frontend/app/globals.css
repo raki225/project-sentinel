@@ -1,0 +1,236 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Safelist dynamically-composed tone + opacity utilities used in the workspace */
+@source inline("{bg,text,border}-{primary,verified,pending,flagged}{,/5,/10,/12,/30}");
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  --color-verified: var(--verified);
+  --color-verified-foreground: var(--verified-foreground);
+  --color-pending: var(--pending);
+  --color-pending-foreground: var(--pending-foreground);
+  --color-flagged: var(--flagged);
+  --color-flagged-foreground: var(--flagged-foreground);
+  --color-accent-teal: var(--accent-teal);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(0.985 0.004 240);
+  --foreground: oklch(0.19 0.03 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.03 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.03 255);
+  --primary: oklch(0.44 0.16 258);
+  --primary-foreground: oklch(0.985 0.004 240);
+  --secondary: oklch(0.95 0.01 245);
+  --secondary-foreground: oklch(0.28 0.05 258);
+  --muted: oklch(0.955 0.008 245);
+  --muted-foreground: oklch(0.5 0.03 255);
+  --accent: oklch(0.93 0.03 220);
+  --accent-foreground: oklch(0.28 0.06 250);
+  --accent-teal: oklch(0.7 0.12 195);
+  --destructive: oklch(0.55 0.22 27);
+
+  --verified: oklch(0.62 0.15 155);
+  --verified-foreground: oklch(0.98 0.01 155);
+  --pending: oklch(0.75 0.15 75);
+  --pending-foreground: oklch(0.28 0.08 75);
+  --flagged: oklch(0.58 0.22 22);
+  --flagged-foreground: oklch(0.98 0.01 22);
+
+  --border: oklch(0.9 0.01 245);
+  --input: oklch(0.9 0.01 245);
+  --ring: oklch(0.44 0.16 258);
+  --chart-1: oklch(0.44 0.16 258);
+  --chart-2: oklch(0.7 0.12 195);
+  --chart-3: oklch(0.62 0.15 155);
+  --chart-4: oklch(0.75 0.15 75);
+  --chart-5: oklch(0.58 0.22 22);
+  --radius: 0.7rem;
+  --sidebar: oklch(0.98 0.005 245);
+  --sidebar-foreground: oklch(0.19 0.03 255);
+  --sidebar-primary: oklch(0.44 0.16 258);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.95 0.01 245);
+  --sidebar-accent-foreground: oklch(0.28 0.05 258);
+  --sidebar-border: oklch(0.9 0.01 245);
+  --sidebar-ring: oklch(0.44 0.16 258);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.16 0.02 260);
+  --foreground: oklch(0.95 0.01 240);
+  --card: oklch(0.2 0.025 260);
+  --card-foreground: oklch(0.95 0.01 240);
+  --popover: oklch(0.2 0.025 260);
+  --popover-foreground: oklch(0.95 0.01 240);
+  --primary: oklch(0.68 0.14 250);
+  --primary-foreground: oklch(0.15 0.03 260);
+  --secondary: oklch(0.26 0.03 260);
+  --secondary-foreground: oklch(0.95 0.01 240);
+  --muted: oklch(0.25 0.025 260);
+  --muted-foreground: oklch(0.68 0.02 250);
+  --accent: oklch(0.3 0.05 245);
+  --accent-foreground: oklch(0.95 0.01 240);
+  --accent-teal: oklch(0.72 0.13 195);
+  --destructive: oklch(0.65 0.2 25);
+
+  --verified: oklch(0.7 0.15 158);
+  --verified-foreground: oklch(0.15 0.03 158);
+  --pending: oklch(0.8 0.14 78);
+  --pending-foreground: oklch(0.2 0.05 78);
+  --flagged: oklch(0.68 0.2 25);
+  --flagged-foreground: oklch(0.15 0.03 25);
+
+  --border: oklch(0.3 0.02 260);
+  --input: oklch(0.3 0.02 260);
+  --ring: oklch(0.68 0.14 250);
+  --chart-1: oklch(0.68 0.14 250);
+  --chart-2: oklch(0.72 0.13 195);
+  --chart-3: oklch(0.7 0.15 158);
+  --chart-4: oklch(0.8 0.14 78);
+  --chart-5: oklch(0.68 0.2 25);
+  --sidebar: oklch(0.18 0.022 260);
+  --sidebar-foreground: oklch(0.95 0.01 240);
+  --sidebar-primary: oklch(0.68 0.14 250);
+  --sidebar-primary-foreground: oklch(0.15 0.03 260);
+  --sidebar-accent: oklch(0.26 0.03 260);
+  --sidebar-accent-foreground: oklch(0.95 0.01 240);
+  --sidebar-border: oklch(0.3 0.02 260);
+  --sidebar-ring: oklch(0.68 0.14 250);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .grid-blueprint {
+    background-image:
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .grid-blueprint-sm {
+    background-image:
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes sentinel-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(2000%); opacity: 0; }
+}
+@keyframes sentinel-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes sentinel-ripple {
+  from { transform: scale(0); opacity: 0.35; }
+  to { transform: scale(2.4); opacity: 0; }
+}
+@keyframes sentinel-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sentinel-draw {
+  from { stroke-dashoffset: var(--dash, 1000); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sentinel-tab-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sentinel-flow {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sentinel-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes sentinel-core-glow {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+.animate-rise {
+  animation: sentinel-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-pulse-dot {
+  animation: sentinel-pulse 2.4s ease-in-out infinite;
+}
+.animate-tab-in {
+  animation: sentinel-tab-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-ripple {
+  animation: sentinel-ripple 0.7s ease-out forwards;
+}
+.animate-orbit {
+  animation: sentinel-orbit 10s linear infinite;
+}
+.animate-orbit-reverse {
+  animation: sentinel-orbit 16s linear infinite reverse;
+}
+.animate-core-glow {
+  animation: sentinel-core-glow 3.2s ease-in-out infinite;
+}
